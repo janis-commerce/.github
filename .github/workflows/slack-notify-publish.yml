@@ -1,0 +1,40 @@
+name: Slack Notify Publish
+
+on:
+  workflow_call:
+    inputs:
+      username:
+        description: Display name shown as the Slack sender. Defaults to the repository name (capitalized).
+        required: false
+        type: string
+    secrets:
+      SLACK_WEBHOOK:
+        description: Slack incoming webhook URL.
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify new version to Slack
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          INPUT_USERNAME: ${{ inputs.username }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          VERSION_TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "Missing SLACK_WEBHOOK secret, skipping notification"
+            exit 0
+          fi
+
+          USERNAME="${INPUT_USERNAME:-$(echo "$REPO_NAME" | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')}"
+          VERSION="${VERSION_TAG#v}"
+          CHANGELOG_URL="${SERVER_URL}/${REPO}/blob/master/CHANGELOG.md"
+          TEXT=":package: Versión ${VERSION} publicada. <${CHANGELOG_URL}|[CHANGELOG]>"
+
+          jq -n --arg username "$USERNAME" --arg text "$TEXT" \
+            '{username: $username, icon_url: "https://static.janis.in/microservices-v2-logos/janis.png", text: $text}' \
+            | curl -s -X POST -H 'content-type: application/json' --data @- "$SLACK_WEBHOOK"
