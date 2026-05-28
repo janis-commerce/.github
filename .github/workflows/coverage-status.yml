@@ -1,0 +1,38 @@
+name: Coverage Status
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Node.js version used to install dependencies and run coverage.
+        required: false
+        default: '22.x'
+        type: string
+      coverage-script:
+        description: npm script that runs the coverage (must generate `./coverage/lcov.info`).
+        required: false
+        default: 'coverage-ci'
+        type: string
+
+jobs:
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run coverage
+        run: npm run ${{ inputs.coverage-script }}
+
+      - name: Upload to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
