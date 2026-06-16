@@ -36,5 +36,5 @@ jobs:
           TEXT=":package: Versión ${VERSION} publicada. <${CHANGELOG_URL}|[CHANGELOG]>"
 
           jq -n --arg username "$USERNAME" --arg text "$TEXT" \
-            '{username: $username, icon_url: "https://static.janis.in/microservices-v2-logos/janis.png", text: $text}' \
+            '{username: $username, icon_url: "https://static.janis.in/microservices-v2-logos/janis.png?v=2026-06", text: $text}' \
             | curl -s -X POST -H 'content-type: application/json' --data @- "$SLACK_WEBHOOK"
