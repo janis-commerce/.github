@@ -1,0 +1,84 @@
+name: NPM Publish
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Node.js version used to install, test and publish.
+        required: false
+        type: string
+        default: '22.x'
+      run-lint:
+        description: Run `npm run lint` before publishing.
+        required: false
+        type: boolean
+        default: false
+      run-tests:
+        description: Run `npm run test` before publishing.
+        required: false
+        type: boolean
+        default: true
+      build-types:
+        description: Run `npm run build-types` before publishing (packages that ship TS declarations).
+        required: false
+        type: boolean
+        default: false
+      notify-slack:
+        description: Notify the published version to Slack.
+        required: false
+        type: boolean
+        default: true
+      slack-username:
+        description: Display name for the Slack notification. Defaults to the repository name (capitalized) when empty.
+        required: false
+        type: string
+        default: ''
+    secrets:
+      npm_token:
+        description: npm auth token with publish access.
+        required: true
+      SLACK_WEBHOOK:
+        description: Slack incoming webhook URL (only needed when notify-slack is true).
+        required: false
+
+jobs:
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          registry-url: https://registry.npmjs.org/
+      - name: Install dependencies
+        run: npm install
+      - name: Lint code
+        if: ${{ inputs.run-lint }}
+        run: npm run lint
+      - name: Run tests
+        if: ${{ inputs.run-tests }}
+        run: npm run test
+      - name: Build types
+        if: ${{ inputs.build-types }}
+        run: npm run build-types
+      # dist-tag is derived from the git tag suffix: `vX.Y.Z-beta.N` -> `beta`, `vX.Y.Z-rc.N` -> `rc`,
+      # `vX.Y.Z` (no suffix) -> `latest`. So a normal release goes to `latest` and any pre-release
+      # (beta/alpha/rc/...) goes to its own dist-tag without ever touching `latest`.
+      - name: Publish to npm
+        run: |
+          TAG=$(echo "$GITHUB_REF_NAME" | grep -oP '(?<=-)[^-.]+' || echo "")
+          npm publish --tag "${TAG:-latest}" --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+
+  notify-slack:
+    name: Notify Slack
+    if: ${{ inputs.notify-slack }}
+    needs: publish-npm
+    uses: janis-commerce/.github/.github/workflows/slack-notify-publish.yml@master
+    with:
+      username: ${{ inputs.slack-username }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
