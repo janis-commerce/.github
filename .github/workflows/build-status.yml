@@ -1,0 +1,60 @@
+name: Build Status
+
+on:
+  workflow_call:
+    inputs:
+      node-versions:
+        description: JSON array of Node.js versions to build against.
+        required: false
+        type: string
+        default: '["18.x", "22.x"]'
+      run-lint:
+        description: Run `npm run lint`.
+        required: false
+        type: boolean
+        default: true
+      run-tests:
+        description: Run `npm run test`.
+        required: false
+        type: boolean
+        default: true
+      build-types:
+        description: Run `npm run build-types` (packages that ship TS declarations).
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # `workflow_call` has no array input type, so the matrix comes in as a JSON string.
+        node-version: ${{ fromJSON(inputs.node-versions) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # `npm install`, not `npm ci`: several packages ship without a lockfile.
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint code
+        if: ${{ inputs.run-lint }}
+        run: npm run lint
+
+      - name: Build types
+        if: ${{ inputs.build-types }}
+        run: npm run build-types
+
+      - name: Run tests
+        if: ${{ inputs.run-tests }}
+        run: npm run test
