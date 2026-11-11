@@ -7,7 +7,7 @@ on:
         description: JSON array of Node.js versions to build against.
         required: false
         type: string
-        default: '["18.x", "22.x"]'
+        default: '["18.x", "22.x", "26.x"]'
       run-lint:
         description: Run `npm run lint`.
         required: false
